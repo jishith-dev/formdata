@@ -1,0 +1,521 @@
+
+struct MultipartFile {
+    string name
+    string filename
+    string contentType
+    List<byte> data
+
+    save(string path) bool {
+    fs.writeFileBytes(path, this.data)
+    return true
+}
+}
+
+struct FormField {
+    string name
+    string value
+}
+
+struct FormData {
+    List<FormField> fields
+    List<MultipartFile> files
+    string boundary
+
+    init() bool {
+        this.fields = []
+        this.files = []
+        this.boundary = "----ZenFormBoundary7f3a91c2"
+        return true
+    }
+
+    append(string name, string value) bool {
+        FormField field
+        field.name = name
+        field.value = value
+        this.fields.push(field)
+        return true
+    }
+
+    appendFile(string name, string path, string contentType = "application/octet-stream") bool {
+        if (!fs.exists(path)) {
+            return false
+        }
+
+        MultipartFile file
+        file.name = name
+        file.filename = path
+        file.contentType = contentType
+        file.data = fs.readFileBytes(path)
+
+        this.files.push(file)
+        return true
+    }
+
+    has(string name) bool {
+        int i = 0
+
+        while (i < this.fields.length) {
+            if (this.fields[i].name == name) {
+                return true
+            }
+            i = i + 1
+        }
+
+        i = 0
+        while (i < this.files.length) {
+            if (this.files[i].name == name) {
+                return true
+            }
+            i = i + 1
+        }
+
+        return false
+    }
+
+    get(string name) string {
+        int i = 0
+
+        while (i < this.fields.length) {
+            if (this.fields[i].name == name) {
+                return this.fields[i].value
+            }
+            i = i + 1
+        }
+
+        return ""
+    }
+
+    getFile(string name) MultipartFile {
+        int i = 0
+
+        while (i < this.files.length) {
+            if (this.files[i].name == name) {
+                return this.files[i]
+            }
+            i = i + 1
+        }
+
+        MultipartFile empty
+        empty.name = ""
+        empty.filename = ""
+        empty.contentType = ""
+        empty.data = []
+
+        return empty
+    }
+
+    remove(string name) bool {
+        int i = 0
+
+        while (i < this.fields.length) {
+            if (this.fields[i].name == name) {
+                this.fields[i] = this.fields[this.fields.length - 1]
+                this.fields.pop()
+                return true
+            }
+            i = i + 1
+        }
+
+        i = 0
+        while (i < this.files.length) {
+            if (this.files[i].name == name) {
+                this.files[i] = this.files[this.files.length - 1]
+                this.files.pop()
+                return true
+            }
+            i = i + 1
+        }
+
+        return false
+    }
+
+    contentType() string {
+        return "multipart/form-data; boundary=" + this.boundary
+    }
+
+   pushText(List<byte> output, string value) void {
+    int i = 0
+
+    while (i < length(value)) {
+        output.push(Byte(value[i]))
+        i = i + 1
+    }
+}
+
+    pushBytes(List<byte> output, List<byte> bytes) void {
+        int i = 0
+
+        while (i < bytes.length) {
+            output.push(bytes[i])
+            i = i + 1
+        }
+    }
+
+    encode() List<byte> {
+        List<byte> output = []
+        string line = ""
+
+        int i = 0
+
+        while (i < this.fields.length) {
+            line = "--" + this.boundary + "\r\n"
+            line = line + "Content-Disposition: form-data; name=\"" + this.fields[i].name + "\"\r\n"
+            line = line + "\r\n"
+            line = line + this.fields[i].value + "\r\n"
+
+            this.pushText(output, line)
+            i = i + 1
+        }
+
+        i = 0
+
+        while (i < this.files.length) {
+            line = "--" + this.boundary + "\r\n"
+            line = line + "Content-Disposition: form-data; name=\"" + this.files[i].name + "\"; filename=\"" + this.files[i].filename + "\"\r\n"
+            line = line + "Content-Type: " + this.files[i].contentType + "\r\n"
+            line = line + "\r\n"
+
+            this.pushText(output, line)
+            this.pushBytes(output, this.files[i].data)
+            this.pushText(output, "\r\n")
+
+            i = i + 1
+        }
+
+        this.pushText(output, "--" + this.boundary + "--\r\n")
+
+        return output
+    }
+
+    findBytes(List<byte> data, List<byte> needle, int start) int {
+        if (needle.length == 0) {
+            return start
+        }
+
+        int i = start
+
+        while (i + needle.length <= data.length) {
+            int j = 0
+            bool matched = true
+
+            while (j < needle.length) {
+                if (data[i + j] != needle[j]) {
+                    matched = false
+                    break
+                }
+
+                j = j + 1
+            }
+
+            if (matched) {
+                return i
+            }
+
+            i = i + 1
+        }
+
+        return -1
+    }
+
+    findString(string source, string needle) int {
+        int sourceLength = length(source)
+        int needleLength = length(needle)
+
+        if (needleLength == 0) {
+            return 0
+        }
+
+        int i = 0
+
+        while (i + needleLength <= sourceLength) {
+            int j = 0
+            bool matched = true
+
+            while (j < needleLength) {
+                if (source[i + j] != needle[j]) {
+                    matched = false
+                    break
+                }
+
+                j = j + 1
+            }
+
+            if (matched) {
+                return i
+            }
+
+            i = i + 1
+        }
+
+        return -1
+    }
+
+    findStringFrom(string source, string needle, int start) int {
+        int sourceLength = length(source)
+        int needleLength = length(needle)
+
+        if (needleLength == 0) {
+            return start
+        }
+
+        int i = start
+
+        while (i + needleLength <= sourceLength) {
+            int j = 0
+            bool matched = true
+
+            while (j < needleLength) {
+                if (source[i + j] != needle[j]) {
+                    matched = false
+                    break
+                }
+
+                j = j + 1
+            }
+
+            if (matched) {
+                return i
+            }
+
+            i = i + 1
+        }
+
+        return -1
+    }
+
+    substring(string source, int start, int end) string {
+        string result = ""
+        int i = start
+
+        while (i < end && i < length(source)) {
+            result = result + source[i]
+            i = i + 1
+        }
+
+        return result
+    }
+
+    trimSpaces(string value) string {
+        int start = 0
+        int end = length(value)
+
+        while (start < end) {
+            if (value[start] != " " && value[start] != "\t") {
+                break
+            }
+
+            start = start + 1
+        }
+
+        while (end > start) {
+            if (value[end - 1] != " " && value[end - 1] != "\t") {
+                break
+            }
+
+            end = end - 1
+        }
+
+        return this.substring(value, start, end)
+    }
+
+    bytesToString(List<byte> data, int start, int end) string {
+        string result = ""
+        int i = start
+
+        while (i < end) {
+            result = result + Byte(data[i])
+            i = i + 1
+        }
+
+        return result
+    }
+
+    afterBoundary(string source, int start) string {
+        string result = ""
+        int i = start
+
+        while (i < length(source)) {
+            if (source[i] == ";" || source[i] == " " || source[i] == "\r" || source[i] == "\n") {
+                break
+            }
+
+            result = result + source[i]
+            i = i + 1
+        }
+
+        return result
+    }
+
+    headerValue(string headers, string wanted) string {
+        int start = 0
+
+        while (start < length(headers)) {
+            int lineEnd = this.findStringFrom(headers, "\r\n", start)
+
+            if (lineEnd < 0) {
+                lineEnd = length(headers)
+            }
+
+            string line = this.substring(headers, start, lineEnd)
+            int colon = this.findString(line, ":")
+
+            if (colon >= 0) {
+                string key = this.substring(line, 0, colon)
+
+                if (key == wanted) {
+                    string value = this.substring(line, colon + 1, length(line))
+                    return this.trimSpaces(value)
+                }
+            }
+
+            start = lineEnd + 2
+        }
+
+        return ""
+    }
+
+    headerParameter(string headers, string wanted) string {
+        int start = 0
+
+        while (start < length(headers)) {
+            int lineEnd = this.findStringFrom(headers, "\r\n", start)
+
+            if (lineEnd < 0) {
+                lineEnd = length(headers)
+            }
+
+            string line = this.substring(headers, start, lineEnd)
+            string token = wanted + "=\""
+            int pos = this.findString(line, token)
+
+            if (pos >= 0) {
+                int valueStart = pos + length(token)
+                int valueEnd = this.findStringFrom(line, "\"", valueStart)
+
+                if (valueEnd >= 0) {
+                    return this.substring(line, valueStart, valueEnd)
+                }
+            }
+
+            start = lineEnd + 2
+        }
+
+        return ""
+    }
+
+    parse(List<byte> body, string header) FormData {
+        FormData result
+        result.init()
+
+        string marker = "boundary="
+        int markerPos = this.findString(header, marker)
+
+        if (markerPos < 0) {
+            return result
+        }
+
+        string parsedBoundary = this.afterBoundary(header, markerPos + length(marker))
+
+        if (length(parsedBoundary) == 0) {
+            return result
+        }
+
+        result.boundary = parsedBoundary
+
+List<byte> boundaryBytes = []
+
+string boundaryText = "--" + parsedBoundary
+
+int i = 0
+while (i < length(boundaryText)) {
+    boundaryBytes.push(Byte(boundaryText[i]))
+    i = i + 1
+}
+
+        List<byte> headerEnd = [
+    13B,
+    10B,
+    13B,
+    10B
+]
+
+        int position = 0
+
+        while (position < body.length) {
+            int begin = this.findBytes(body, boundaryBytes, position)
+
+            if (begin < 0) {
+                break
+            }
+
+            int cursor = begin + boundaryBytes.length
+
+            if (cursor + 2 <= body.length) {
+                if (body[cursor] == 45B && body[cursor + 1] == 45B) {
+                    break
+                }
+
+                if (body[cursor] == 13B && body[cursor + 1] == 10B) {
+                    cursor = cursor + 2
+                }
+            }
+
+            int headerPosition = this.findBytes(body, headerEnd, cursor)
+
+            if (headerPosition < 0) {
+                return result
+            }
+
+            string partHeaders = this.bytesToString(body, cursor, headerPosition)
+            int dataStart = headerPosition + headerEnd.length
+
+            int nextBoundary = this.findBytes(body, boundaryBytes, dataStart)
+
+            if (nextBoundary < 0) {
+                return result
+            }
+
+            int dataEnd = nextBoundary
+
+            if (dataEnd >= 2) {
+                if (body[dataEnd - 2] == 13B && body[dataEnd - 1] == 10B) {
+                    dataEnd = dataEnd - 2
+                }
+            }
+
+            string fieldName = this.headerParameter(partHeaders, "name")
+            string fileName = this.headerParameter(partHeaders, "filename")
+            string type = this.headerValue(partHeaders, "Content-Type")
+
+            if (length(fieldName) > 0) {
+                if (length(fileName) > 0) {
+                    MultipartFile file
+
+                    file.name = fieldName
+                    file.filename = fileName
+                    file.contentType = type
+                    file.data = []
+
+                    int p = dataStart
+
+                    while (p < dataEnd) {
+                        file.data.push(body[p])
+                        p = p + 1
+                    }
+
+                    result.files.push(file)
+                } else {
+                    string value = this.bytesToString(body, dataStart, dataEnd)
+                    result.append(fieldName, value)
+                }
+            }
+
+            position = nextBoundary
+        }
+
+        return result
+    }
+}
+
+export (FormData, MultipartFile, FormField)
+
