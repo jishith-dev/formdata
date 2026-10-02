@@ -1,265 +1,89 @@
-import (FormData, MultipartFile, FormField) from "lib.zen"
+import (FormData, MultipartFile) from "lib.zen"
+fs.writeFile("hello.txt", "Hello from hello.txt\n")
+fs.writeFile("notes.txt", "line one\nline two\nline three\n")
 
-
-screen("=== FORM DATA MULTI-FILE TEST ===")
+List<byte> photoBytes = []
+loop (int n = 0, n < 300, n++) {
+    photoBytes.push(Byte((n * 37 + 11) % 256))
+}
+fs.writeFileBytes("photo.bin", photoBytes)
 
 
 FormData form
-form.init()
+form.append("username", "jishith")
+form.append("email", "jishith@example.com")
+form.append("bio", "Builds things in Zen.\nSecond line.")
+form.appendFile("doc", "hello.txt", "text/plain")
+form.appendFile("notes", "notes.txt", "text/plain")
+form.appendFile("photo", "photo.bin", "application/octet-stream")
 
+screen("content type:")
+screen(form.contentType())
 
-// Add multiple text fields
+screen("")
+screen("username: " + form.get("username"))
+screen("email: " + form.get("email"))
+screen("bio: " + form.get("bio"))
+screen("has doc: " + String(form.has("doc")))
+screen("has missing: " + String(form.has("missing")))
 
-screen("Adding text fields...")
+MultipartFile doc = form.getFile("doc")
+screen("")
+screen("doc.name: " + doc.name)
+screen("doc.filename: " + doc.filename)
+screen("doc.contentType: " + doc.contentType)
+screen("doc.size: " + String(doc.data.length))
 
-screen(form.append("username", "Jishith MP"))
-screen(form.append("email", "jishith@example.com"))
-screen(form.append("age", "21"))
-screen(form.append("message", "Hello from Zen!\nMultiple lines."))
+FormData small
+small.append("city", "Kochi")
+small.append("age", "21")
 
+List<byte> raw = small.encode()
+string text = ""
+loop (int i = 0, i < raw.length, i++) {
+    text = text + Byte(raw[i])
+}
 
-screen("Field count:")
-screen(form.fields.length)
-
-screen(form.get("username"))
-screen(form.get("email"))
-screen(form.get("age"))
-screen(form.get("message"))
-
-
-// Check fields
-
-screen("=== FIELD CHECKS ===")
-
-screen(form.has("username"))
-screen(form.has("email"))
-screen(form.has("age"))
-screen(form.has("message"))
-
-screen(form.has("missing_field"))
-screen("Missing field:")
-screen(form.get("missing_field"))
-
-
-// Add multiple files
-
-screen("=== ADDING FILES ===")
-
-screen(form.appendFile(
-    "first_file",
-    "file1.txt",
-    "text/plain"
-))
-
-screen(form.appendFile(
-    "second_file",
-    "file2.txt",
-    "text/plain"
-))
-
-screen(form.appendFile(
-    "binary_file",
-    "binary.bin",
-    "application/octet-stream"
-))
-
-
-screen("Total fields after files:")
-screen(form.fields.length)
-
-
-// Encode
-
-screen("=== ENCODING ===")
+screen("")
+screen("encoded body of a small form:")
+screen(text)
 
 List<byte> body = form.encode()
+screen("full form body size: " + String(body.length) + " bytes")
 
-screen("Encoded body length:")
-screen(body.length)
+FormData reader
+FormData parsed = reader.parse(body, form.contentType())
 
-string contentType = form.contentType()
+screen("")
+screen("parsed username: " + parsed.get("username"))
+screen("parsed email: " + parsed.get("email"))
+screen("parsed bio: " + parsed.get("bio"))
 
-screen("Content-Type:")
-screen(contentType)
+MultipartFile pdoc = parsed.getFile("doc")
+MultipartFile pnotes = parsed.getFile("notes")
+MultipartFile pphoto = parsed.getFile("photo")
 
+screen("parsed doc: " + pdoc.filename + " (" + pdoc.contentType + ", " + String(pdoc.data.length) + " bytes)")
+screen("parsed notes: " + pnotes.filename + " (" + pnotes.contentType + ", " + String(pnotes.data.length) + " bytes)")
+screen("parsed photo: " + pphoto.filename + " (" + pphoto.contentType + ", " + String(pphoto.data.length) + " bytes)")
 
-// Save encoded body
+pdoc.save("out_hello.txt")
+pnotes.save("out_notes.txt")
+pphoto.save("out_photo.bin")
 
-screen("Saving multipart body...")
-
-fs.writeFileBytes("multi-multipart.bin", body)
-
-screen("Body saved")
-
-
-// Parse encoded body
-
-screen("=== PARSING ===")
-
-FormData parsed = form.parse(body, contentType)
-
-screen("Parsed username:")
-screen(parsed.get("username"))
-
-screen("Parsed email:")
-screen(parsed.get("email"))
-
-screen("Parsed age:")
-screen(parsed.get("age"))
-
-screen("Parsed message:")
-screen(parsed.get("message"))
-
-
-// Validate parsed fields
-
-screen("=== PARSED FIELD VALIDATION ===")
-
-screen(parsed.has("username"))
-screen(parsed.has("email"))
-screen(parsed.has("age"))
-screen(parsed.has("message"))
-
-screen(parsed.get("username") == "Jishith MP")
-screen(parsed.get("email") == "jishith@example.com")
-screen(parsed.get("age") == "21")
-screen(parsed.get("message") == "Hello from Zen!\nMultiple lines.")
-
-
-// Get first file
-
-screen("=== FIRST FILE ===")
-
-MultipartFile first = parsed.getFile("first_file")
-
-screen(first.name)
-screen(first.filename)
-screen(first.contentType)
-screen(first.data.length)
-
-screen(first.name == "first_file")
-screen(first.filename == "file1.txt")
-screen(first.contentType == "text/plain")
-
-
-// Get second file
-
-screen("=== SECOND FILE ===")
-
-MultipartFile second = parsed.getFile("second_file")
-
-screen(second.name)
-screen(second.filename)
-screen(second.contentType)
-screen(second.data.length)
-
-screen(second.name == "second_file")
-screen(second.filename == "file2.txt")
-screen(second.contentType == "text/plain")
-
-
-// Get binary file
-
-screen("=== BINARY FILE ===")
-
-MultipartFile binary = parsed.getFile("binary_file")
-
-screen(binary.name)
-screen(binary.filename)
-screen(binary.contentType)
-screen(binary.data.length)
-
-screen(binary.name == "binary_file")
-screen(binary.filename == "binary.bin")
-screen(binary.contentType == "application/octet-stream")
-
-
-// Save all parsed files
-
-screen("=== SAVING PARSED FILES ===")
-
-screen(first.save("output_file1.txt"))
-screen(second.save("output_file2.txt"))
-screen(binary.save("output_binary.bin"))
-
-
-// Read saved files again
-
-screen("=== READING SAVED FILES ===")
-
-List<byte> savedOne = fs.readFileBytes("output_file1.txt")
-List<byte> savedTwo = fs.readFileBytes("output_file2.txt")
-List<byte> savedBinary = fs.readFileBytes("output_binary.bin")
-
-screen(savedOne.length)
-screen(savedTwo.length)
-screen(savedBinary.length)
-
-
-// Verify saved file lengths
-
-screen("=== LENGTH VALIDATION ===")
-
-screen(savedOne.length == first.data.length)
-screen(savedTwo.length == second.data.length)
-screen(savedBinary.length == binary.data.length)
-
-
-// Verify first file bytes
-
-screen("=== FIRST FILE BYTE VALIDATION ===")
-
-bool firstValid = true
-
-int i = 0
-
-while (i < first.data.length) {
-    if (first.data[i] != savedOne[i]) {
-        firstValid = false
-    }
-
-    i = i + 1
+List<byte> saved = fs.readFileBytes("out_notes.txt")
+string savedText = ""
+loop (int i = 0, i < saved.length, i++) {
+    savedText = savedText + Byte(saved[i])
 }
 
-screen(firstValid)
+screen("")
+screen("out_notes.txt contains:")
+screen(savedText)
 
-
-// Verify second file bytes
-
-screen("=== SECOND FILE BYTE VALIDATION ===")
-
-bool secondValid = true
-
-int j = 0
-
-while (j < second.data.length) {
-    if (second.data[j] != savedTwo[j]) {
-        secondValid = false
-    }
-
-    j = j + 1
-}
-
-screen(secondValid)
-
-
-// Verify binary file bytes
-
-screen("=== BINARY FILE BYTE VALIDATION ===")
-
-bool binaryValid = true
-
-int k = 0
-
-while (k < binary.data.length) {
-    if (binary.data[k] != savedBinary[k]) {
-        binaryValid = false
-    }
-
-    k = k + 1
-}
-
-screen(binaryValid)
-
-
-screen("=== TEST COMPLETE ===")
+form.remove("email")
+form.remove("notes")
+screen("after remove, has email: " + String(form.has("email")))
+screen("after remove, has notes: " + String(form.has("notes")))
+screen("fields left: " + String(form.fields.length))
+screen("files left: " + String(form.files.length))

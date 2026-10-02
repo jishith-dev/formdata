@@ -1,6 +1,6 @@
 {
   "name": "formdata",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "Jishith-dev",
   "repo": "https://github.com/Jishith-dev/formdata",
   "description": "Multipart/form-data encoding and parsing for Zen, supporting text fields, file uploads, binary data, and saving parsed files.",

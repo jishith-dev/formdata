@@ -1,24 +1,11 @@
-# FormData
+# formdata
 
-Multipart/form-data support for the Zen programming language.
+**Author:** Jishith M P
+**Version:** 2.0.0
 
-The `formdata` package provides functionality for creating, encoding, parsing,
-and saving multipart form data, including text fields and file uploads.
+Multipart/form-data for Zen. Build a form with text fields and files, encode it into a request body, or parse an incoming body back into fields and files. Binary data is kept byte for byte.
 
-## Features
-
-- Add text fields.
-- Add files from the filesystem.
-- Encode data as multipart/form-data.
-- Parse multipart/form-data bodies.
-- Retrieve text fields.
-- Retrieve uploaded files.
-- Save parsed files to disk.
-- Support binary file data.
-- Preserve filenames and content types.
-- Built entirely in Zen.
-
-## Installation
+## Install
 
 ```bash
 zen install formdata
@@ -27,264 +14,174 @@ zen install formdata
 ## Import
 
 ```zen
-import (FormData, MultipartFile, FormField) from "lib.zen"
+import (FormData, MultipartFile) from "formdata"
 ```
 
-## API
-
-### FormData
-
-#### `init()`
-
-Initializes a FormData instance.
+## Quick start
 
 ```zen
+import (FormData, MultipartFile) from "lib.zen"
+
 FormData form
-form.init()
-```
+form.append("username", "jishith")
+form.append("email", "jishith@example.com")
+form.appendFile("avatar", "photo.png", "image/png")
 
-#### `append(name, value)`
-
-Adds a text field.
-
-**Returns:** `bool`
-
-```zen
-bool added = form.append("username", "Jishith")
-
-screen(added)
-```
-
-#### `appendFile(name, filename, contentType)`
-
-Reads a file from the filesystem and adds it to the form.
-
-**Returns:** `bool`
-
-```zen
-bool added = form.appendFile(
-    "document",
-    "file1.txt",
-    "text/plain"
-)
-
-screen(added)
-```
-
-#### `has(name)`
-
-Checks whether a field exists.
-
-**Returns:** `bool`
-
-```zen
-screen(form.has("username"))
-```
-
-#### `get(name)`
-
-Retrieves a text field value.
-
-**Returns:** `string`
-
-```zen
-string username = form.get("username")
-
-screen(username)
-```
-
-#### `encode()`
-
-Encodes the form as a multipart/form-data body.
-
-**Returns:** `List<byte>`
-
-```zen
 List<byte> body = form.encode()
-```
-
-#### `contentType()`
-
-Returns the Content-Type header containing the multipart boundary.
-
-**Returns:** `string`
-
-```zen
 string header = form.contentType()
 
-screen(header)
+FormData reader
+FormData parsed = reader.parse(body, header)
+
+screen(parsed.get("username"))
+
+MultipartFile avatar = parsed.getFile("avatar")
+avatar.save("avatar_copy.png")
 ```
 
-Example:
+A new `FormData` is ready to use as soon as it is declared. There is no `init()` call.
+
+## FormData
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `fields` | `List<MultipartFile>` | Text fields. Each entry uses `name` and `value`. |
+| `files` | `List<MultipartFile>` | Added or parsed files. |
+
+### `append(name, value)`
+
+Adds a text field. Returns `bool`.
+
+```zen
+form.append("username", "jishith")
+```
+
+### `appendFile(name, path, contentType)`
+
+Reads the file at `path` and adds it to the form. `contentType` is optional and defaults to `application/octet-stream`. Returns `false` if the file does not exist.
+
+The `path` you pass is stored as the filename.
+
+```zen
+form.appendFile("doc", "hello.txt", "text/plain")
+```
+
+### `has(name)`
+
+Returns `true` if a text field or a file with that name exists.
+
+### `get(name)`
+
+Returns the value of a text field, or an empty string if there is none.
+
+### `getFile(name)`
+
+Returns the `MultipartFile` with that name. If there is none, you get an empty one with an empty `name` and no data.
+
+### `remove(name)`
+
+Removes the first text field or file with that name. Returns `false` if nothing matched.
+
+### `encode()`
+
+Returns the multipart body as `List<byte>`.
+
+### `contentType()`
+
+Returns the header value to send with the body.
 
 ```text
 multipart/form-data; boundary=----ZenFormBoundary7f3a91c2
 ```
 
-#### `parse(body, header)`
+### `parse(body, header)`
 
-Parses a multipart/form-data body.
+Parses a multipart body and returns a new `FormData`. The boundary is read from `header`. If the header has no boundary, or the body is empty or malformed, the result is empty.
 
-**Parameters:**
-
-- `body` — Raw multipart request body.
-- `header` — Content-Type header containing the boundary.
-
-**Returns:** `FormData`
+`parse` is an instance method, so call it on a declared `FormData`:
 
 ```zen
-FormData parsed = form.parse(body, header)
+FormData reader
+FormData parsed = reader.parse(body, header)
 ```
 
-#### `getFile(name)`
-
-Retrieves a parsed file by its form field name.
-
-**Returns:** `MultipartFile`
-
-```zen
-MultipartFile uploaded = parsed.getFile("document")
-```
-
----
-
-### MultipartFile
-
-Represents a parsed uploaded file.
-
-#### Properties
+## MultipartFile
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `name` | `string` | Form field name |
-| `filename` | `string` | Original filename |
+| `filename` | `string` | Filename |
 | `contentType` | `string` | MIME type |
 | `data` | `List<byte>` | File contents |
+| `value` | `string` | Text value, used by text fields |
 
-#### `save(path)`
+### `save(path)`
 
-Saves file data to the specified path.
-
-**Returns:** `bool`
-
-```zen
-bool saved = uploaded.save("uploads/output.txt")
-
-screen(saved)
-```
-
-## Basic Example
+Writes `data` to `path`. Returns `bool`.
 
 ```zen
-import (FormData, MultipartFile, FormField) from "lib.zen"
-
-
-FormData form
-form.init()
-
-
-form.append("username", "Jishith")
-form.append("email", "jishith@example.com")
-
-
-form.appendFile(
-    "document",
-    "file1.txt",
-    "text/plain"
-)
-
-
-List<byte> body = form.encode()
-
-string contentType = form.contentType()
-
-
-fs.writeFileBytes("multipart.bin", body)
-
-
-FormData parsed = form.parse(body, contentType)
-
-
-screen(parsed.get("username"))
-screen(parsed.get("email"))
-
-
-MultipartFile file = parsed.getFile("document")
-
-screen(file.name)
-screen(file.filename)
-screen(file.contentType)
-screen(file.data.length)
-
-
-bool saved = file.save("output.txt")
-
-screen(saved)
+MultipartFile doc = parsed.getFile("doc")
+doc.save("out_hello.txt")
 ```
 
-## Multiple Files
+## Example output
 
-Multiple files can be added to the same form.
+Encoding a small form:
 
 ```zen
-form.appendFile(
-    "first_file",
-    "file1.txt",
-    "text/plain"
-)
-
-form.appendFile(
-    "second_file",
-    "file2.txt",
-    "text/plain"
-)
-
-form.appendFile(
-    "binary_file",
-    "binary.bin",
-    "application/octet-stream"
-)
+FormData small
+small.append("city", "Kochi")
+small.append("age", "21")
+List<byte> raw = small.encode()
 ```
 
-Retrieve files after parsing:
+gives this body:
+
+```text
+------ZenFormBoundary7f3a91c2
+Content-Disposition: form-data; name="city"
+
+Kochi
+------ZenFormBoundary7f3a91c2
+Content-Disposition: form-data; name="age"
+
+21
+------ZenFormBoundary7f3a91c2--
+```
+
+Parsing a body that has three files:
+
+```text
+parsed doc: hello.txt (text/plain, 21 bytes)
+parsed notes: notes.txt (text/plain, 29 bytes)
+parsed photo: photo.bin (application/octet-stream, 300 bytes)
+```
+
+## Multiple files
 
 ```zen
-MultipartFile first = parsed.getFile("first_file")
-MultipartFile second = parsed.getFile("second_file")
-MultipartFile binary = parsed.getFile("binary_file")
+form.appendFile("first", "file1.txt", "text/plain")
+form.appendFile("second", "file2.txt", "text/plain")
+form.appendFile("binary", "binary.bin", "application/octet-stream")
+
+MultipartFile first = parsed.getFile("first")
+MultipartFile second = parsed.getFile("second")
+MultipartFile binary = parsed.getFile("binary")
 ```
 
-## Binary Files
+## Notes
 
-The package supports binary file contents using `List<byte>`.
+- The boundary and the parsing helpers are private.
+- Only `FormData` and `MultipartFile` are exported.
+- Names are matched exactly. If two entries share a name, the first one wins for `get`, `getFile` and `remove`.
 
-```zen
-MultipartFile file = parsed.getFile("binary_file")
+## Changes in 2.0.0
 
-screen(file.data.length)
-
-bool saved = file.save("output_binary.bin")
-
-screen(saved)
-```
-
-Binary data is preserved during encoding, parsing, and saving.
-
-## End-to-End Verification
-
-The package was tested with:
-
-- Multiple text fields.
-- Multiple text files.
-- A binary file containing raw byte values.
-- Multipart encoding.
-- Multipart parsing.
-- Filename and content-type preservation.
-- Saving parsed files.
-- Byte-by-byte file integrity verification.
-
-The tested encode → parse → save pipeline successfully preserved
-the original file contents.
+- Removed `init()`. Fields have default values.
+- Removed `FormField`. Text fields are stored as `MultipartFile`.
+- Added `remove(name)`.
+- Internal helpers and the boundary are now private.
+- `parse` is documented as an instance method.
 
 ## License
 
